@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=admin
+      - DB_PASSWORD=admin123
+      - DB_NAME=multi_demo
+      - DB_PORT=5432
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318
+    depends_on:
+      collector:
+        condition: service_started
+      prometheus:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173" 
+    environment:
+      - REACT_APP_API_URL=http://backend:8080
+    stdin_open: true
+    tty: true
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app 
+  collector:
+    image: otel/opentelemetry-collector:latest
+    volumes:
+      - ./monitoring/otel-collector-config.yaml:/otel-local-config.yaml
+    command: ["--config", "/otel-local-config.yaml"]
+    ports:
+      - "4318:4318"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"  # Shifted to avoid conflict with React frontend
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: multi_demo
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data: {}
+  grafana_data: {}

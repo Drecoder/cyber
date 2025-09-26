@@ -1,0 +1,76 @@
+// Grafana Setup 
+// Visit http://localhost:3000 
+// Login with admin / admin 
+
+// Add Prometheus as a 
+//data source: http://localhost:9090 
+// Import dashboards or create your own 
+// to visualize metrics like: 
+//http_request_duration_seconds
+
+// Metrics 
+// Visit http://localhost:8080/metrics 
+// and verify Prometheus metrics 
+// are exposed. 
+// Look for http_request_duration_seconds 
+// with labels for path, method, and status.
+
+### Health check
+GET http://localhost:8080/health
+# Expected: Cyber Service is running
+
+
+### Fetch all questions
+GET http://localhost:8080/questions
+Accept: application/json
+# Expected: JSON array of 3+ questions with fields:
+# id, paradigm, text, weight, selector, options
+
+
+### Submit answers for User 12
+POST http://localhost:8080/submit
+Content-Type: application/json
+
+{
+  "userId": "12",
+  "answers": {
+    "1": "Yes",
+    "2": ["AWS", "GCP"],
+    "3": "No"
+  }
+}
+
+# Expected: {"totalScore":15,"policy":"Basic Cyber Insurance"}
+
+
+### Get result for User 12
+GET http://localhost:8080/result/12
+Accept: application/json
+# Expected: {"totalScore":15,"policy":"Basic Cyber Insurance"}
+
+
+### Submit different answers for User 99
+POST http://localhost:8080/submit
+Content-Type: application/json
+
+{
+  "userId": "99",
+  "answers": {
+    "1": "No",
+    "2": ["Azure"],
+    "3": "Yes"
+  }
+}
+# Expected: {"totalScore":25,"policy":"Advanced Cyber Insurance"} (depending on scoring rules)
+
+
+### Get result for User 99
+GET http://localhost:8080/result/99
+Accept: application/json
+# Expected: returns result object with correct score/policy
+
+
+### Paradigms endpoint (DB driven)
+GET http://localhost:8080/paradigms
+Accept: application/json
+# Expected: JSON array with paradigm objects from DB

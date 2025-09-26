@@ -1,0 +1,94 @@
+name: Full CI/CD Pipeline with Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci-cd:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin123
+          POSTGRES_DB: multi_demo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d multi_demo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Step 1: Checkout repository
+      - uses: actions/checkout@v3
+
+      # Step 2: Setup Go
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+
+      # Step 3: Backend build & test
+      - name: Build backend
+        run: |
+          cd backend
+          go mod download
+          go build -o main .
+      - name: Run backend tests
+        run: |
+          cd backend
+          go test ./... -v -cover
+
+      # Step 4: Setup Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # Step 5: Frontend install dependencies
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      # Step 6: Frontend tests
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test -- --watchAll=false --coverage
+
+      # Step 7: Build frontend (Vite)
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      # Step 8: Login to DockerHub
+      - name: Log in to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Step 9: Build Docker images
+      - name: Build Docker images
+        run: |
+          docker build -t andres606/backend ./backend
+          docker build -t andres606/frontend ./frontend
+
+      # Step 10: Push Docker images
+      - name: Push Docker images
+        run: |
+          docker push andres606/backend
+          docker push andres606/frontend
+
+      # Optional Step 11: Deploy (if you have a server)
+      # - name: Deploy to server
+      #   run: ssh user@your-server "cd /path/to/project && docker-compose pull && docker-compose up -d"
