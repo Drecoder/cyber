@@ -37,7 +37,7 @@ jobs:
 
       # Step 3: Backend build & test
       - name: Build backend
-        working-directory: ./backend
+        working-directory: ./backend/cmd/server
         run: |
           cd backend
           go mod download
