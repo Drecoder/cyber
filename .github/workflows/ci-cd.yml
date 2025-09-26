@@ -39,12 +39,10 @@ jobs:
       - name: Build backend
         working-directory: ./backend
         run: |
-          cd backend
           go mod download
           go build -o main .
       - name: Run backend tests
         run: |
-          cd backend
           go test ./... -v -cover
 
       # Step 4: Setup Node.js
